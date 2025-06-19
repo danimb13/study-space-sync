@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Classroom, Reservation, RoomStatus } from '@/types/booking';
 import { useEffect } from 'react';
-import { toast } from '@/hooks/use-toast';
 
 export const useRoomData = (selectedDate: Date, selectedHour?: number) => {
   // Fetch classrooms
@@ -62,12 +61,25 @@ export const useRoomData = (selectedDate: Date, selectedHour?: number) => {
     };
   }, [refetch]);
 
-  // Calculate room status
-  const getRoomStatus = (classroom: Classroom, hour?: number): RoomStatus => {
+  const getRoomTypeDisplay = (roomType: string) => {
+    switch (roomType) {
+      case 'meeting_room': return 'Meeting Room';
+      case 'conference_room': return 'Conference Room';
+      case 'computer_room': return 'Computer Room';
+      case 'study_room': return 'Study Room';
+      default: return 'Room';
+    }
+  };
+
+  // Calculate room status and available hours
+  const getRoomStatus = (classroom: Classroom): RoomStatus | null => {
     const roomReservations = reservations.filter(r => r.classroom_id === classroom.id);
+    const hours = Array.from({ length: 14 }, (_, i) => i + 8); // 8 AM to 9 PM
     
-    if (hour !== undefined) {
-      // Check specific hour
+    const availableHours: Array<{ hour: number; isShared: boolean }> = [];
+    let hasAnyAvailability = false;
+    
+    for (const hour of hours) {
       const hourStart = new Date(selectedDate);
       hourStart.setHours(hour, 0, 0, 0);
       const hourEnd = new Date(selectedDate);
@@ -80,73 +92,68 @@ export const useRoomData = (selectedDate: Date, selectedHour?: number) => {
       });
       
       const privateReservation = overlappingReservations.find(r => r.is_private);
-      if (privateReservation) {
-        return {
-          id: classroom.id,
-          name: classroom.name,
-          capacity: classroom.capacity,
-          currentOccupancy: classroom.capacity,
-          status: 'private'
-        };
+      const currentOccupancy = overlappingReservations.length;
+      
+      // Hour is available if no private booking and under capacity
+      if (!privateReservation && currentOccupancy < classroom.capacity) {
+        availableHours.push({
+          hour,
+          isShared: currentOccupancy > 0
+        });
+        hasAnyAvailability = true;
+      }
+    }
+    
+    // Only return rooms that have some availability
+    if (!hasAnyAvailability) {
+      return null;
+    }
+    
+    // If filtering by specific hour, check if that hour is available
+    if (selectedHour !== undefined) {
+      const hourAvailable = availableHours.find(h => h.hour === selectedHour);
+      if (!hourAvailable) {
+        return null;
       }
       
-      const currentOccupancy = overlappingReservations.length;
-      const status = currentOccupancy === 0 ? 'available' : 
-                   currentOccupancy === classroom.capacity ? 'full' : 'partial';
-      
       return {
         id: classroom.id,
         name: classroom.name,
         capacity: classroom.capacity,
-        currentOccupancy,
-        status
+        building: classroom.building,
+        room_type: classroom.room_type,
+        currentOccupancy: hourAvailable.isShared ? 1 : 0,
+        status: hourAvailable.isShared ? 'partial' : 'available',
+        availableHours: [hourAvailable]
       };
     }
     
-    // General status for the day
-    const hasPrivate = roomReservations.some(r => r.is_private);
-    if (hasPrivate) {
-      return {
-        id: classroom.id,
-        name: classroom.name,
-        capacity: classroom.capacity,
-        currentOccupancy: classroom.capacity,
-        status: 'private'
-      };
-    }
-    
-    const maxOccupancy = Math.max(0, ...Array.from({ length: 24 }, (_, hour) => {
-      const hourStart = new Date(selectedDate);
-      hourStart.setHours(hour, 0, 0, 0);
-      const hourEnd = new Date(selectedDate);
-      hourEnd.setHours(hour + 1, 0, 0, 0);
-      
-      return roomReservations.filter(r => {
-        const resStart = new Date(r.start_time);
-        const resEnd = new Date(r.end_time);
-        return resStart < hourEnd && resEnd > hourStart && !r.is_private;
-      }).length;
-    }));
-    
-    const status = maxOccupancy === 0 ? 'available' : 
-                   maxOccupancy === classroom.capacity ? 'full' : 'partial';
+    // For general view, determine overall status
+    const hasSharedHours = availableHours.some(h => h.isShared);
+    const status = hasSharedHours ? 'partial' : 'available';
     
     return {
       id: classroom.id,
       name: classroom.name,
       capacity: classroom.capacity,
-      currentOccupancy: maxOccupancy,
-      status
+      building: classroom.building,
+      room_type: classroom.room_type,
+      currentOccupancy: 0,
+      status,
+      availableHours
     };
   };
 
-  const roomStatuses = classrooms.map(classroom => getRoomStatus(classroom, selectedHour));
+  const roomStatuses = classrooms
+    .map(classroom => getRoomStatus(classroom))
+    .filter((room): room is RoomStatus => room !== null);
 
   return {
     classrooms,
     reservations,
     roomStatuses,
     isLoading: classroomsLoading || reservationsLoading,
-    refetch
+    refetch,
+    getRoomTypeDisplay
   };
 };

@@ -11,22 +11,28 @@ export type Database = {
     Tables: {
       classrooms: {
         Row: {
+          building: string
           capacity: number
           created_at: string
           id: string
           name: string
+          room_type: string
         }
         Insert: {
+          building: string
           capacity: number
           created_at?: string
           id?: string
           name: string
+          room_type?: string
         }
         Update: {
+          building?: string
           capacity?: number
           created_at?: string
           id?: string
           name?: string
+          room_type?: string
         }
         Relationships: []
       }

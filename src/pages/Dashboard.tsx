@@ -13,7 +13,7 @@ const Dashboard = () => {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
 
-  const { roomStatuses, classrooms, isLoading, refetch } = useRoomData(selectedDate, selectedHour);
+  const { roomStatuses, classrooms, isLoading, refetch, getRoomTypeDisplay } = useRoomData(selectedDate, selectedHour);
 
   const handleBookRoom = (roomId: string) => {
     const classroom = classrooms.find(c => c.id === roomId);
@@ -47,6 +47,7 @@ const Dashboard = () => {
           onDateChange={setSelectedDate}
           selectedHour={selectedHour}
           onHourChange={setSelectedHour}
+          roomStatuses={roomStatuses}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -56,6 +57,7 @@ const Dashboard = () => {
               room={room}
               onBook={handleBookRoom}
               selectedHour={selectedHour}
+              getRoomTypeDisplay={getRoomTypeDisplay}
             />
           ))}
         </div>
@@ -63,6 +65,7 @@ const Dashboard = () => {
         {roomStatuses.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No rooms available for the selected criteria.</p>
+            <p className="text-gray-400 text-sm mt-2">Try selecting a different date or time.</p>
           </div>
         )}
 

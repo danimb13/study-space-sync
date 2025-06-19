@@ -3,6 +3,8 @@ export interface Classroom {
   id: string;
   name: string;
   capacity: number;
+  building: string;
+  room_type: string;
   created_at: string;
 }
 
@@ -22,7 +24,13 @@ export interface RoomStatus {
   id: string;
   name: string;
   capacity: number;
+  building: string;
+  room_type: string;
   currentOccupancy: number;
   status: 'available' | 'partial' | 'private' | 'full';
+  availableHours: Array<{
+    hour: number;
+    isShared: boolean;
+  }>;
   nextAvailable?: string;
 }

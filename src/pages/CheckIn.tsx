@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Reservation, Classroom } from '@/types/booking';
-import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock, MapPin, Building } from 'lucide-react';
 
 const CheckIn = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -18,13 +18,37 @@ const CheckIn = () => {
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [classroom, setClassroom] = useState<Classroom | null>(null);
 
-  const roomName = roomId?.replace('room-', 'Room ').replace('-', ' ').split(' ').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ');
+  // Convert roomId to proper room name (e.g., "room-a" -> "Room A")
+  const getRoomNameFromId = (id: string | undefined) => {
+    if (!id) return '';
+    
+    // Handle different formats like "room-a", "room-b", etc.
+    const parts = id.split('-');
+    if (parts.length >= 2) {
+      const roomLetter = parts[1].toUpperCase();
+      return `Room ${roomLetter}`;
+    }
+    
+    return id;
+  };
+
+  const roomName = getRoomNameFromId(roomId);
+
+  const getRoomTypeDisplay = (roomType: string) => {
+    switch (roomType) {
+      case 'meeting_room': return 'Meeting Room';
+      case 'conference_room': return 'Conference Room';
+      case 'computer_room': return 'Computer Room';
+      case 'study_room': return 'Study Room';
+      default: return 'Room';
+    }
+  };
 
   useEffect(() => {
     const fetchClassroom = async () => {
       if (!roomName) return;
+      
+      console.log('Looking for classroom with name:', roomName);
       
       const { data, error } = await supabase
         .from('classrooms')
@@ -32,7 +56,15 @@ const CheckIn = () => {
         .eq('name', roomName)
         .single();
       
-      if (!error && data) {
+      if (error) {
+        console.error('Error fetching classroom:', error);
+        toast({
+          title: "Room Not Found",
+          description: `Could not find room "${roomName}". Please check the URL.`,
+          variant: "destructive"
+        });
+      } else if (data) {
+        console.log('Found classroom:', data);
         setClassroom(data);
       }
     };
@@ -135,7 +167,6 @@ const CheckIn = () => {
 
       if (updateError) throw updateError;
 
-      // Type assertion to ensure the reservation matches our Reservation interface
       const typedReservation: Reservation = {
         ...validReservation,
         status: 'checked_in' as const
@@ -160,7 +191,7 @@ const CheckIn = () => {
     }
   };
 
-  if (reservation) {
+  if (reservation && classroom) {
     const startTime = new Date(reservation.start_time);
     const endTime = new Date(reservation.end_time);
     
@@ -174,8 +205,18 @@ const CheckIn = () => {
           <CardContent className="space-y-4 text-center p-6">
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
               <h3 className="font-semibold text-green-800 text-lg">{roomName}</h3>
-              <p className="text-green-700 font-medium">
-                {startTime.toLocaleTimeString()} - {endTime.toLocaleTimeString()}
+              <div className="space-y-1 text-sm text-green-700 mt-2">
+                <div className="flex items-center justify-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span>{classroom.building}</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <Building className="w-4 h-4" />
+                  <span>{getRoomTypeDisplay(classroom.room_type)}</span>
+                </div>
+              </div>
+              <p className="text-green-700 font-medium mt-3">
+                {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
               <p className="text-sm text-green-600 mt-2">
                 {reservation.is_private ? 'Private Booking' : 'Shared Booking'}
@@ -195,9 +236,24 @@ const CheckIn = () => {
       <Card className="w-full max-w-md shadow-lg border-0">
         <CardHeader className="text-center bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
           <Clock className="w-16 h-16 mx-auto mb-4" />
-          <CardTitle className="text-2xl">Check-in to {roomName}</CardTitle>
+          <CardTitle className="text-2xl">Check-in to {roomName || 'Room'}</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
+          {classroom && (
+            <div className="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <div className="space-y-1 text-sm text-blue-800">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span className="font-medium">{classroom.building}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Building className="w-4 h-4" />
+                  <span>{getRoomTypeDisplay(classroom.room_type)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <Alert className="mb-6 border-blue-200 bg-blue-50">
             <AlertCircle className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-800">
@@ -221,7 +277,7 @@ const CheckIn = () => {
 
             <Button 
               type="submit" 
-              disabled={isLoading} 
+              disabled={isLoading || !classroom} 
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2"
             >
               {isLoading ? 'Checking in...' : 'Check In'}
