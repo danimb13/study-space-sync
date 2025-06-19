@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Classroom } from '@/types/booking';
+import { Classroom, Reservation } from '@/types/booking';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -24,10 +24,98 @@ export const BookingModal = ({ isOpen, onClose, classroom, selectedDate, onSucce
   const [duration, setDuration] = useState<number>(1);
   const [isPrivate, setIsPrivate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [availableHours, setAvailableHours] = useState<number[]>([]);
+  const [availableDurations, setAvailableDurations] = useState<number[]>([]);
 
   const validateEmail = (email: string) => {
     return email.endsWith('@alumni.esade.edu');
   };
+
+  // Check available hours when modal opens or settings change
+  useEffect(() => {
+    const checkAvailability = async () => {
+      if (!classroom || !isOpen) return;
+
+      try {
+        // Expire old reservations first
+        await supabase.rpc('expire_old_reservations');
+
+        const hours = Array.from({ length: 14 }, (_, i) => i + 8); // 8 AM to 9 PM
+        const available: number[] = [];
+
+        for (const hour of hours) {
+          const startTime = new Date(selectedDate);
+          startTime.setHours(hour, 0, 0, 0);
+          const endTime = new Date(selectedDate);
+          endTime.setHours(hour + 1, 0, 0, 0);
+
+          const { data: canBook } = await supabase.rpc('can_make_reservation', {
+            p_classroom_id: classroom.id,
+            p_start_time: startTime.toISOString(),
+            p_end_time: endTime.toISOString(),
+            p_is_private: isPrivate
+          });
+
+          if (canBook) {
+            available.push(hour);
+          }
+        }
+
+        setAvailableHours(available);
+        
+        // Set default start hour to first available
+        if (available.length > 0 && !available.includes(startHour)) {
+          setStartHour(available[0]);
+        }
+      } catch (error) {
+        console.error('Error checking availability:', error);
+      }
+    };
+
+    checkAvailability();
+  }, [classroom, selectedDate, isPrivate, isOpen, startHour]);
+
+  // Check available durations when start hour changes
+  useEffect(() => {
+    const checkDurations = async () => {
+      if (!classroom || !availableHours.includes(startHour)) return;
+
+      const maxDuration = 3;
+      const available: number[] = [];
+
+      for (let dur = 1; dur <= maxDuration; dur++) {
+        const startTime = new Date(selectedDate);
+        startTime.setHours(startHour, 0, 0, 0);
+        const endTime = new Date(selectedDate);
+        endTime.setHours(startHour + dur, 0, 0, 0);
+
+        try {
+          const { data: canBook } = await supabase.rpc('can_make_reservation', {
+            p_classroom_id: classroom.id,
+            p_start_time: startTime.toISOString(),
+            p_end_time: endTime.toISOString(),
+            p_is_private: isPrivate
+          });
+
+          if (canBook) {
+            available.push(dur);
+          }
+        } catch (error) {
+          console.error('Error checking duration:', error);
+          break;
+        }
+      }
+
+      setAvailableDurations(available);
+      
+      // Reset duration if current selection is not available
+      if (available.length > 0 && !available.includes(duration)) {
+        setDuration(available[0]);
+      }
+    };
+
+    checkDurations();
+  }, [classroom, selectedDate, startHour, isPrivate, availableHours, duration]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,10 +131,19 @@ export const BookingModal = ({ isOpen, onClose, classroom, selectedDate, onSucce
       return;
     }
 
-    if (duration > 3) {
+    if (!availableHours.includes(startHour)) {
       toast({
-        title: "Invalid Duration",
-        description: "Maximum booking duration is 3 hours",
+        title: "Time Slot Unavailable",
+        description: "The selected time slot is no longer available",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!availableDurations.includes(duration)) {
+      toast({
+        title: "Duration Unavailable",
+        description: "The selected duration is no longer available",
         variant: "destructive"
       });
       return;
@@ -61,7 +158,7 @@ export const BookingModal = ({ isOpen, onClose, classroom, selectedDate, onSucce
       const endTime = new Date(startTime);
       endTime.setHours(startHour + duration, 0, 0, 0);
 
-      // Check if reservation is possible
+      // Double-check availability before booking
       const { data: canBook, error: checkError } = await supabase.rpc('can_make_reservation', {
         p_classroom_id: classroom.id,
         p_start_time: startTime.toISOString(),
@@ -74,7 +171,7 @@ export const BookingModal = ({ isOpen, onClose, classroom, selectedDate, onSucce
       if (!canBook) {
         toast({
           title: "Booking Unavailable",
-          description: "This time slot is not available for the selected booking type",
+          description: "This time slot is no longer available",
           variant: "destructive"
         });
         return;
@@ -116,19 +213,18 @@ export const BookingModal = ({ isOpen, onClose, classroom, selectedDate, onSucce
     }
   };
 
-  const hours = Array.from({ length: 14 }, (_, i) => i + 8); // 8 AM to 9 PM
-  const durations = [1, 2, 3];
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Book {classroom?.name}</DialogTitle>
+          <DialogTitle className="text-xl font-semibold text-gray-900">
+            Book {classroom?.name}
+          </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <Label htmlFor="email">University Email</Label>
+            <Label htmlFor="email" className="text-gray-700 font-medium">University Email</Label>
             <Input
               id="email"
               type="email"
@@ -136,55 +232,81 @@ export const BookingModal = ({ isOpen, onClose, classroom, selectedDate, onSucce
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your.name@alumni.esade.edu"
               required
+              className="mt-1 border-blue-200 focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
+          <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+            <Switch
+              id="private"
+              checked={isPrivate}
+              onCheckedChange={setIsPrivate}
+            />
+            <Label htmlFor="private" className="text-gray-700">
+              Private booking (exclusive use)
+            </Label>
+          </div>
+
           <div>
-            <Label htmlFor="startHour">Start Time</Label>
-            <Select value={startHour.toString()} onValueChange={(value) => setStartHour(parseInt(value))}>
-              <SelectTrigger>
+            <Label htmlFor="startHour" className="text-gray-700 font-medium">Start Time</Label>
+            <Select 
+              value={startHour.toString()} 
+              onValueChange={(value) => setStartHour(parseInt(value))}
+              disabled={availableHours.length === 0}
+            >
+              <SelectTrigger className="mt-1 border-blue-200 focus:border-blue-500 focus:ring-blue-500">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {hours.map(hour => (
+                {availableHours.map(hour => (
                   <SelectItem key={hour} value={hour.toString()}>
                     {hour}:00
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {availableHours.length === 0 && (
+              <p className="text-sm text-red-600 mt-1">No available time slots</p>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="duration">Duration (hours)</Label>
-            <Select value={duration.toString()} onValueChange={(value) => setDuration(parseInt(value))}>
-              <SelectTrigger>
+            <Label htmlFor="duration" className="text-gray-700 font-medium">Duration (hours)</Label>
+            <Select 
+              value={duration.toString()} 
+              onValueChange={(value) => setDuration(parseInt(value))}
+              disabled={availableDurations.length === 0}
+            >
+              <SelectTrigger className="mt-1 border-blue-200 focus:border-blue-500 focus:ring-blue-500">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {durations.map(dur => (
+                {availableDurations.map(dur => (
                   <SelectItem key={dur} value={dur.toString()}>
                     {dur} hour{dur > 1 ? 's' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {availableDurations.length === 0 && (
+              <p className="text-sm text-red-600 mt-1">No available durations</p>
+            )}
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="private"
-              checked={isPrivate}
-              onCheckedChange={setIsPrivate}
-            />
-            <Label htmlFor="private">Private booking (exclusive use)</Label>
-          </div>
-
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+          <div className="flex gap-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="flex-1 border-gray-300"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="flex-1">
+            <Button 
+              type="submit" 
+              disabled={isLoading || availableHours.length === 0 || availableDurations.length === 0} 
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
               {isLoading ? 'Booking...' : 'Confirm Booking'}
             </Button>
           </div>

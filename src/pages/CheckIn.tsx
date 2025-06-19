@@ -165,16 +165,16 @@ const CheckIn = () => {
     const endTime = new Date(reservation.end_time);
     
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <CardTitle className="text-2xl text-green-700">Check-in Successful!</CardTitle>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-6">
+        <Card className="w-full max-w-md shadow-lg border-0">
+          <CardHeader className="text-center bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
+            <CheckCircle className="w-16 h-16 mx-auto mb-4" />
+            <CardTitle className="text-2xl">Check-in Successful!</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-center">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-green-800">{roomName}</h3>
-              <p className="text-green-700">
+          <CardContent className="space-y-4 text-center p-6">
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <h3 className="font-semibold text-green-800 text-lg">{roomName}</h3>
+              <p className="text-green-700 font-medium">
                 {startTime.toLocaleTimeString()} - {endTime.toLocaleTimeString()}
               </p>
               <p className="text-sm text-green-600 mt-2">
@@ -191,23 +191,23 @@ const CheckIn = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <Clock className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-6">
+      <Card className="w-full max-w-md shadow-lg border-0">
+        <CardHeader className="text-center bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
+          <Clock className="w-16 h-16 mx-auto mb-4" />
           <CardTitle className="text-2xl">Check-in to {roomName}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Alert className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
+        <CardContent className="p-6">
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
               This room reservation must be confirmed within the allowed time window: from 5 minutes before until 15 minutes after the booked time. If no check-in is made, the room will become available for others. Please enter your university email to confirm your booking.
             </AlertDescription>
           </Alert>
 
           <form onSubmit={handleCheckIn} className="space-y-4">
             <div>
-              <Label htmlFor="email">University Email</Label>
+              <Label htmlFor="email" className="text-gray-700 font-medium">University Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -215,10 +215,15 @@ const CheckIn = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.name@alumni.esade.edu"
                 required
+                className="mt-1 border-blue-200 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
-            <Button type="submit" disabled={isLoading} className="w-full">
+            <Button 
+              type="submit" 
+              disabled={isLoading} 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2"
+            >
               {isLoading ? 'Checking in...' : 'Check In'}
             </Button>
           </form>
