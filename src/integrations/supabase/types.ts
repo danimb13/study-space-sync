@@ -9,13 +9,89 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      classrooms: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          capacity: number
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      reservations: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          end_time: string
+          id: string
+          is_private: boolean
+          start_time: string
+          status: string
+          student_email: string
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          end_time: string
+          id?: string
+          is_private?: boolean
+          start_time: string
+          status?: string
+          student_email: string
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_private?: boolean
+          start_time?: string
+          status?: string
+          student_email?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_make_reservation: {
+        Args: {
+          p_classroom_id: string
+          p_start_time: string
+          p_end_time: string
+          p_is_private: boolean
+        }
+        Returns: boolean
+      }
+      expire_old_reservations: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
