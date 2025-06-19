@@ -135,7 +135,13 @@ const CheckIn = () => {
 
       if (updateError) throw updateError;
 
-      setReservation(validReservation);
+      // Type assertion to ensure the reservation matches our Reservation interface
+      const typedReservation: Reservation = {
+        ...validReservation,
+        status: 'checked_in' as const
+      };
+
+      setReservation(typedReservation);
       
       toast({
         title: "Check-in Successful!",
