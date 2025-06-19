@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,23 +135,11 @@ const CheckIn = () => {
       const validReservation = reservations.find(r => isWithinCheckInWindow(r.start_time));
 
       if (!validReservation) {
-        const upcomingReservation = reservations.find(r => new Date(r.start_time) > new Date());
-        if (upcomingReservation) {
-          const startTime = new Date(upcomingReservation.start_time);
-          const checkInStart = new Date(startTime.getTime() - 5 * 60 * 1000);
-          
-          toast({
-            title: "Check-in Not Available Yet",
-            description: `You can check in starting from ${checkInStart.toLocaleTimeString()} (5 minutes before your booking)`,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Check-in Window Expired",
-            description: "The check-in window has expired for all your reservations in this room",
-            variant: "destructive"
-          });
-        }
+        toast({
+          title: "Check-in Not Available",
+          description: "Check-in is not available. You are outside the allowed check-in window for your reservation.",
+          variant: "destructive"
+        });
         return;
       }
 
@@ -199,6 +186,7 @@ const CheckIn = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-6">
         <Card className="w-full max-w-md shadow-lg border-0">
           <CardHeader className="text-center bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
+            {/* <img src="https://upload.wikimedia.org/wikipedia/commons/2/21/ESADE_Logo.svg" alt="ESADE Logo" className="mx-auto mb-2 w-32 h-auto" /> */}
             <CheckCircle className="w-16 h-16 mx-auto mb-4" />
             <CardTitle className="text-2xl">Check-in Successful!</CardTitle>
           </CardHeader>
@@ -235,6 +223,7 @@ const CheckIn = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-6">
       <Card className="w-full max-w-md shadow-lg border-0">
         <CardHeader className="text-center bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
+          {/* <img src="https://upload.wikimedia.org/wikipedia/commons/2/21/ESADE_Logo.svg" alt="ESADE Logo" className="mx-auto mb-2 w-32 h-auto" /> */}
           <Clock className="w-16 h-16 mx-auto mb-4" />
           <CardTitle className="text-2xl">Check-in to {roomName || 'Room'}</CardTitle>
         </CardHeader>

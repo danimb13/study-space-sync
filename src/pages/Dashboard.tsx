@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { RoomCard } from '@/components/RoomCard';
 import { BookingModal } from '@/components/BookingModal';
@@ -38,7 +37,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">University Room Booking</h1>
+          <img src="/esade-logo.png" alt="ESADE Logo" className="mx-auto mb-4 w-48 h-auto" />
           <p className="text-gray-600 text-lg">Reserve your perfect study space</p>
         </div>
         

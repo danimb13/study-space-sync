@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Classroom, Reservation, RoomStatus } from '@/types/booking';
@@ -109,26 +108,7 @@ export const useRoomData = (selectedDate: Date, selectedHour?: number) => {
       return null;
     }
     
-    // If filtering by specific hour, check if that hour is available
-    if (selectedHour !== undefined) {
-      const hourAvailable = availableHours.find(h => h.hour === selectedHour);
-      if (!hourAvailable) {
-        return null;
-      }
-      
-      return {
-        id: classroom.id,
-        name: classroom.name,
-        capacity: classroom.capacity,
-        building: classroom.building,
-        room_type: classroom.room_type,
-        currentOccupancy: hourAvailable.isShared ? 1 : 0,
-        status: hourAvailable.isShared ? 'partial' : 'available',
-        availableHours: [hourAvailable]
-      };
-    }
-    
-    // For general view, determine overall status
+    // Para el filtro, no modifiques availableHours, solo filtra las salas abajo
     const hasSharedHours = availableHours.some(h => h.isShared);
     const status = hasSharedHours ? 'partial' : 'available';
     
@@ -144,9 +124,13 @@ export const useRoomData = (selectedDate: Date, selectedHour?: number) => {
     };
   };
 
+  // Filtra las salas por la hora seleccionada, pero no modifiques availableHours
   const roomStatuses = classrooms
     .map(classroom => getRoomStatus(classroom))
-    .filter((room): room is RoomStatus => room !== null);
+    .filter((room): room is RoomStatus => room !== null)
+    .filter(room =>
+      selectedHour === undefined || room.availableHours.some(h => h.hour === selectedHour)
+    );
 
   return {
     classrooms,
