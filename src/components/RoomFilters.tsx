@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,29 +24,16 @@ export const RoomFilters = ({
   const maxDate = new Date();
   maxDate.setDate(today.getDate() + 30); // Allow booking up to 30 days ahead
 
-  // Get all available hours across all rooms
-  const getAvailableHours = () => {
-    const allHours = new Set<number>();
-    const sharedHours = new Set<number>();
-    
-    roomStatuses.forEach(room => {
-      room.availableHours.forEach(({ hour, isShared }) => {
-        allHours.add(hour);
-        if (isShared) {
-          sharedHours.add(hour);
-        }
-      });
-    });
-    
-    return Array.from(allHours)
-      .sort((a, b) => a - b)
-      .map(hour => ({
-        hour,
-        isShared: sharedHours.has(hour)
-      }));
-  };
+  // Rango fijo de horas (8 a 21) para que la última opción sea 21:00-22:00
+  const allHours = Array.from({ length: 14 }, (_, i) => i + 8); // [8, 9, ..., 21]
 
-  const availableHours = getAvailableHours();
+  // Opcional: puedes marcar cuáles están disponibles en las habitaciones filtradas
+  const availableHoursSet = new Set<number>();
+  roomStatuses.forEach(room => {
+    room.availableHours.forEach(({ hour }) => {
+      availableHoursSet.add(hour);
+    });
+  });
 
   return (
     <Card className="mb-6 border-blue-100 bg-gradient-to-r from-blue-50 to-white">
@@ -74,22 +60,16 @@ export const RoomFilters = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All available hours</SelectItem>
-                {availableHours.length === 0 ? (
-                  <SelectItem value="none" disabled>No available times</SelectItem>
-                ) : (
-                  availableHours.map(({ hour, isShared }) => (
-                    <SelectItem key={hour} value={hour.toString()}>
-                      <div className="flex items-center gap-2 w-full">
-                        <span>{hour}:00 - {hour + 1}:00</span>
-                        {isShared && (
-                          <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                            Shared
-                          </Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
+                {allHours.map(hour => (
+                  <SelectItem key={hour} value={hour.toString()} disabled={!availableHoursSet.has(hour)}>
+                    <div className={`flex items-center gap-2 w-full ${selectedHour === hour ? 'font-bold text-blue-700' : ''}`}>
+                      <span>{hour}:00 - {hour + 1}:00</span>
+                      {!availableHoursSet.has(hour) && (
+                        <span className="text-xs text-gray-400 ml-2">(No rooms)</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
